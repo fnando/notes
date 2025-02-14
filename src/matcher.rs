@@ -49,6 +49,7 @@ impl Matcher {
     }
 }
 
+#[allow(clippy::module_name_repetitions)]
 pub struct MatcherSet {
     pub matchers: Vec<Matcher>,
 }

@@ -26,7 +26,7 @@ impl Notes {
 
         self.paths
             .iter()
-            .filter_map(|path| self.expand_to_path_glob(path))
+            .filter_map(expand_to_path_glob)
             .for_each(|p| {
                 for path in &self.expand_glob_to_files(&p) {
                     let Ok(file) = File::open(path) else {
@@ -89,16 +89,6 @@ impl Notes {
             });
     }
 
-    fn expand_to_path_glob(&self, entry: &String) -> Option<String> {
-        std::fs::canonicalize(entry).ok().map(|path| {
-            if path.is_dir() {
-                format!("{}/**/*", path.to_str().unwrap())
-            } else {
-                path.to_str().unwrap().to_string()
-            }
-        })
-    }
-
     fn expand_glob_to_files(&self, pattern: &str) -> Vec<PathBuf> {
         glob(pattern)
             .expect("Failed to read glob pattern")
@@ -117,7 +107,7 @@ impl Notes {
                     return false;
                 }
 
-                if self.is_binary(p) {
+                if is_binary(p) {
                     self.logger
                         .robot(&format!("Ignoring file because it's a binary: {p:?}"));
                     return false;
@@ -126,20 +116,6 @@ impl Notes {
                 true
             })
             .collect()
-    }
-
-    fn is_binary(&self, path: &Path) -> bool {
-        if let Ok(mut file) = File::open(path) {
-            let mut buffer = [0; 24];
-
-            if let Ok(bytes_read) = file.read(&mut buffer) {
-                return buffer[..bytes_read]
-                    .iter()
-                    .any(|b| *b == 0 || (b.is_ascii_control() && ![9, 10, 13].contains(b)));
-            }
-        }
-
-        false
     }
 }
 
@@ -152,4 +128,28 @@ fn truncate(s: &str, max_chars: usize) -> String {
             truncated
         }
     }
+}
+
+fn expand_to_path_glob(entry: &String) -> Option<String> {
+    std::fs::canonicalize(entry).ok().map(|path| {
+        if path.is_dir() {
+            format!("{}/**/*", path.to_str().unwrap())
+        } else {
+            path.to_str().unwrap().to_string()
+        }
+    })
+}
+
+fn is_binary(path: &Path) -> bool {
+    if let Ok(mut file) = File::open(path) {
+        let mut buffer = [0; 24];
+
+        if let Ok(bytes_read) = file.read(&mut buffer) {
+            return buffer[..bytes_read]
+                .iter()
+                .any(|b| *b == 0 || (b.is_ascii_control() && ![9, 10, 13].contains(b)));
+        }
+    }
+
+    false
 }
