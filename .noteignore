@@ -5,6 +5,7 @@
 /_build/
 /out/
 /bin/
+/sbin/
 /Pods/
 /node_modules/
 /vendor/
@@ -156,3 +157,5 @@ replay_pid*
 /libexec/
 /site-packages/
 /share/
+*.{ttf,otf,woff,woff2,eot}
+/pkg/mod/
