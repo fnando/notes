@@ -79,6 +79,12 @@ fn main() {
         r"\b(?<marker>TODO|FIXME|XXX|HACK|BUG|NOTE|REVIEW|OPTIMIZE|DEBUG|IDEA|DEPRECATED)\b:?(?<text>.*?)$",
     ).unwrap();
 
+    let mut paths = cli.path;
+
+    if paths.is_empty() {
+        paths.push(".".to_string());
+    }
+
     let only = cli
         .only
         .unwrap_or("TODO,FIXME,XXX,HACK,BUG,NOTE,REVIEW,OPTIMIZE,DEBUG,IDEA,DEPRECATED".to_string())
@@ -103,61 +109,58 @@ fn main() {
     let mut notes_count = 0;
     let mut ignored_count = 0;
 
-    cli.path
-        .iter()
-        .filter_map(expand_to_path_glob)
-        .for_each(|p| {
-            for path in &expand_glob_to_files(&p, &ignore) {
-                let Ok(file) = File::open(path) else { continue };
+    paths.iter().filter_map(expand_to_path_glob).for_each(|p| {
+        for path in &expand_glob_to_files(&p, &ignore) {
+            let Ok(file) = File::open(path) else { continue };
 
-                for (index, line) in BufReader::new(file).lines().enumerate() {
-                    let line = line.unwrap_or_default();
-                    let line = line.trim();
+            for (index, line) in BufReader::new(file).lines().enumerate() {
+                let line = line.unwrap_or_default();
+                let line = line.trim();
 
-                    if let Some(matches) = marker_matcher.captures(line) {
-                        let marker = matches.name("marker").unwrap().as_str().trim();
-                        let text = truncate(matches.name("text").unwrap().as_str().trim(), 80);
-                        let text: String = text.chars().take(60).collect();
+                if let Some(matches) = marker_matcher.captures(line) {
+                    let marker = matches.name("marker").unwrap().as_str().trim();
+                    let text = truncate(matches.name("text").unwrap().as_str().trim(), 80);
+                    let text: String = text.chars().take(60).collect();
 
-                        if text.len() <= 2 {
-                            continue;
-                        }
+                    if text.len() <= 2 {
+                        continue;
+                    }
 
-                        notes_count += 1;
+                    notes_count += 1;
 
-                        if !only.contains(&marker.to_string()) {
-                            ignored_count += 1;
-                            continue;
-                        }
+                    if !only.contains(&marker.to_string()) {
+                        ignored_count += 1;
+                        continue;
+                    }
 
-                        let lineno = index + 1;
-                        let relative = path
-                            .strip_prefix(&current_dir)
-                            .unwrap_or(path)
-                            .to_str()
-                            .unwrap();
-                        let relative = format!("{relative}:{lineno}");
+                    let lineno = index + 1;
+                    let relative = path
+                        .strip_prefix(&current_dir)
+                        .unwrap_or(path)
+                        .to_str()
+                        .unwrap();
+                    let relative = format!("{relative}:{lineno}");
 
-                        let colored_marker = format!("\x1b[33m[{marker}]\x1b[0m");
-                        let colored_relative = format!("\x1b[37m{relative}\x1b[0m");
+                    let colored_marker = format!("\x1b[33m[{marker}]\x1b[0m");
+                    let colored_relative = format!("\x1b[37m{relative}\x1b[0m");
 
-                        if cli.no_color {
-                            println!("{marker} {text}");
-                            println!("{relative}\n");
-                        } else {
-                            println!("{colored_marker} {text}");
-                            println!("{colored_relative}\n");
-                        }
+                    if cli.no_color {
+                        println!("{marker} {text}");
+                        println!("{relative}\n");
+                    } else {
+                        println!("{colored_marker} {text}");
+                        println!("{colored_relative}\n");
                     }
                 }
             }
+        }
 
-            print!("ℹ️ Found {notes_count} notes");
-            if ignored_count > 0 {
-                print!(" ({ignored_count} ignored)");
-            }
-            println!();
-        });
+        print!("ℹ️ Found {notes_count} notes");
+        if ignored_count > 0 {
+            print!(" ({ignored_count} ignored)");
+        }
+        println!();
+    });
 }
 
 fn expand_to_path_glob(entry: &String) -> Option<String> {
